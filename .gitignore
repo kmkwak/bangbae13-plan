@@ -1,0 +1,18 @@
+# Original plaintext sources (NEVER commit)
+simulation.html
+simulation-v1.html
+simulation-v2.html
+simulation-v3.html
+
+# Design / planning notes
+DESIGN.md
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Node
+node_modules/
+package.json
+package-lock.json
