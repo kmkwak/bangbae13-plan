@@ -16,3 +16,6 @@ DESIGN.md
 node_modules/
 package.json
 package-lock.json
+
+# Local deploy state (source hash for change detection)
+.deploy-state

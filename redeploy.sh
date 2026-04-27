@@ -25,14 +25,22 @@ if ! PASSWORD=$(security find-generic-password -a "$USER" -s bangbae13-plan -w 2
   exit 1
 fi
 
-# ── 2. StatiCrypt 임시 환경 ──────────────────────────────
+# ── 2. 원본 해시 비교 (StatiCrypt IV 가 매번 랜덤이라 ciphertext diff 는 의미 없음) ──
+SRC_HASH=$(shasum -a 256 simulation-v1.html | awk '{print $1}')
+LAST_HASH=$(cat .deploy-state 2>/dev/null || echo "")
+if [ "$SRC_HASH" = "$LAST_HASH" ]; then
+  echo "= simulation-v1.html 변경 없음. 배포 생략."
+  exit 0
+fi
+
+# ── 3. StatiCrypt 임시 환경 ──────────────────────────────
 echo '{"name":"tmp","version":"0.0.0","private":true}' > package.json
 trap 'rm -rf package.json package-lock.json node_modules encrypted' EXIT
 
 echo "→ staticrypt 설치 (silent)"
 npm install --no-save --silent staticrypt
 
-# ── 3. 암호화 ────────────────────────────────────────────
+# ── 4. 암호화 ────────────────────────────────────────────
 echo "→ simulation-v1.html 암호화 → docs/index.html"
 ./node_modules/.bin/staticrypt simulation-v1.html \
     -p "$PASSWORD" --short -o docs/index.html >/dev/null 2>&1 || true
@@ -42,17 +50,14 @@ if [ -f encrypted/simulation-v1.html ]; then
   mv -f encrypted/simulation-v1.html docs/index.html
 fi
 
-# ── 4. 변경 없으면 종료 ──────────────────────────────────
-if git diff --quiet docs/index.html; then
-  echo "= docs/index.html 변경 없음. 배포 생략."
-  exit 0
-fi
-
 # ── 5. 커밋 + push ───────────────────────────────────────
 echo "→ git commit + push"
 git add docs/index.html
 git commit -m "Update simulation"
 git push
+
+# ── 6. 배포 성공 시 원본 해시 기록 (다음 실행에서 변경 감지용) ──
+echo "$SRC_HASH" > .deploy-state
 
 cat <<'EOF'
 
