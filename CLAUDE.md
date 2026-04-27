@@ -20,31 +20,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 빌드 및 배포 (재암호화 → push)
 
-`simulation-v1.html` 이 작업 원본. 모든 수정은 여기에 들어가고, 배포 산출물은 `docs/index.html` 로 StatiCrypt가 생성.
+`simulation-v1.html` 이 작업 원본. 모든 수정은 여기에 들어가고, 배포 산출물은 `docs/index.html` 로 StatiCrypt가 생성. GitHub Pages 설정은 `main` branch / `/docs` 폴더.
 
-작업 디렉토리에 `package.json` 이 없어서 `npx staticrypt …` 직접 실행은 실패함. 다음 패턴을 그대로 사용:
+### 표준 흐름: `./redeploy.sh`
+
+비밀번호는 macOS Keychain 에 보관됨. 평문 노출 없이 한 줄로 끝.
+
+```bash
+./redeploy.sh
+```
+
+**사전 준비 (1회)**: 새 환경에서는 Keychain 에 비밀번호 등록 필요.
+
+```bash
+security add-generic-password -a "$USER" -s bangbae13-plan -w '<password>'
+```
+
+스크립트가 하는 일:
+1. Keychain 에서 비번 조회 (`security find-generic-password`)
+2. 임시 `package.json` + `npm install --no-save staticrypt` (작업 dir 에 `package.json` 이 없어 `npx` 직접 호출이 실패하기 때문)
+3. `staticrypt simulation-v1.html -p "$PASSWORD" -o docs/index.html`
+4. StatiCrypt 의 `-o` 가 무시되고 `encrypted/simulation-v1.html` 로 떨어지는 케이스 보정
+5. 변경 없으면 종료, 있으면 `git add → commit → push`
+6. trap 으로 임시 `package.json` / `node_modules` / `encrypted` 정리
+
+스크립트는 macOS 전용 (`security` 명령). Linux 이식 필요 시 `secret-tool` (libsecret) 또는 `pass` 로 교체.
+
+### 수동 흐름 (참고용 — 스크립트가 망가졌거나 디버깅 시)
 
 ```bash
 echo '{"name":"tmp","version":"0.0.0","private":true}' > package.json
 npm install --no-save --silent staticrypt
 ./node_modules/.bin/staticrypt simulation-v1.html -p '<PASSWORD>' --short -o docs/index.html
-
-# 현재 StatiCrypt 버전은 -o 를 정확히 지키지 않고 encrypted/simulation-v1.html 로 출력하므로
-# 필요 시 수동 이동:
 [ -f encrypted/simulation-v1.html ] && mv -f encrypted/simulation-v1.html docs/index.html && rmdir encrypted
-
 rm -rf package.json package-lock.json node_modules
+git add docs/index.html && git commit -m "Update simulation" && git push
 ```
-
-이후 commit + push:
-
-```bash
-git add docs/index.html
-git commit -m "Update simulation"
-git push
-```
-
-GitHub Pages 설정은 `main` branch / `/docs` 폴더. 최초 활성화는 repo Settings → Pages 에서 처리됨.
 
 ## `simulation-v1.html` 아키텍처
 
